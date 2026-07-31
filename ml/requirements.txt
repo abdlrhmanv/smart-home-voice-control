@@ -1,0 +1,25 @@
+# Speech-to-Text
+faster-whisper>=1.0.0
+
+# Audio processing & features
+librosa>=0.10.0
+soundfile>=0.12.0
+sounddevice>=0.4.6
+
+# ML
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+joblib>=1.3.0
+
+# Optional boosters (install if you want to try them)
+# xgboost>=2.0.0
+# lightgbm>=4.0.0
+
+# Visualization (training notebooks / reports)
+matplotlib>=3.7.0
+seaborn>=0.13.0
+
+# Recorder app
+scipy>=1.11.0
+sounddevice>=0.4.6
