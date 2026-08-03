@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from utils.uploads import UploadValidationError, save_uploaded_wav
+from utils.uploads import UploadValidationError, save_audio_upload, save_uploaded_wav
 from utils.calibration_store import load_calibration_report, reports_dir
 
 
@@ -34,6 +34,13 @@ def test_save_uploaded_wav_rejects_non_wav(tmp_path):
 def test_save_uploaded_wav_rejects_empty(tmp_path):
     with pytest.raises(UploadValidationError):
         save_uploaded_wav(FakeUpload("empty.wav", b""), dest_dir=tmp_path)
+
+
+def test_save_audio_upload_accepts_non_wav(tmp_path):
+    upload = FakeUpload("clip.webm", b"\x1aE\xdf\xa3fake-webm")
+    path = save_audio_upload(upload, dest_dir=tmp_path)
+    assert Path(path).suffix == ".webm"
+    assert Path(path).read_bytes().startswith(b"\x1aE")
 
 
 def test_calibration_store_missing_ok():

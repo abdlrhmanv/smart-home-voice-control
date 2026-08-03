@@ -1,10 +1,10 @@
 import streamlit as st
 
 from components.header import show_header
-from utils.state import initialize_state
-from utils.uploads import save_uploaded_wav
-from services.password_service import authenticate
 from services.device_service import lock_home
+from services.password_service import authenticate
+from utils.state import initialize_state
+from utils.uploads import save_audio_upload, save_uploaded_wav
 
 st.set_page_config(page_title="Password", page_icon="🔐", layout="wide")
 
@@ -54,17 +54,25 @@ def _show_auth_result(result) -> None:
         st.caption(f"Reason: {result.rejected_reason}")
 
 
-if st.button("Record Password", use_container_width=True):
-    with st.spinner("Listening..."):
+st.subheader("Record in browser (recommended)")
+st.caption(
+    "Uses your browser microphone — works on Streamlit Cloud without PortAudio."
+)
+audio = st.audio_input("Record password", key="password_audio_input")
+if audio is not None and st.button(
+    "Verify browser recording", use_container_width=True, type="primary"
+):
+    with st.spinner("Verifying..."):
         try:
-            result = authenticate()
+            path = save_audio_upload(audio)
+            result = authenticate(audio_path=path)
         except Exception as exc:
             st.error(f"Authentication failed: {exc}")
         else:
             _show_auth_result(result)
 
 st.divider()
-st.subheader("Or upload a WAV (testing / Playwright)")
+st.subheader("Or upload a WAV")
 uploaded = st.file_uploader(
     "Password WAV",
     type=["wav"],
@@ -79,3 +87,14 @@ if uploaded is not None and st.button("Verify uploaded password", use_container_
             st.error(f"Authentication failed: {exc}")
         else:
             _show_auth_result(result)
+
+with st.expander("Advanced: server microphone (local only)"):
+    st.caption("Needs PortAudio on the machine running Streamlit (`libportaudio2`).")
+    if st.button("Record via server mic", use_container_width=True):
+        with st.spinner("Listening..."):
+            try:
+                result = authenticate()
+            except Exception as exc:
+                st.error(f"Authentication failed: {exc}")
+            else:
+                _show_auth_result(result)

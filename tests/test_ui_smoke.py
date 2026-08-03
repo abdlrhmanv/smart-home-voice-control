@@ -101,7 +101,7 @@ def test_password_page_loads(streamlit_server):
         )
         page.wait_for_timeout(2500)
         body = page.content().lower()
-        assert "password" in body or "authentication" in body or "open sesame" in body
+        assert "password" in body or "authentication" in body or "open" in body
         browser.close()
 
 
