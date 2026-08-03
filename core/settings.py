@@ -16,6 +16,8 @@ class SerialStatus:
     port: str | None
     baud_rate: int
     connected: bool
+    last_error: str | None = None
+    candidates: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -41,10 +43,25 @@ class SettingsService:
         self.ml_dir = project_root / "ml"
 
     def serial_status(self) -> SerialStatus:
+        candidates: tuple[str, ...] = ()
+        last_error = None
+        if hasattr(self.serial, "list_candidate_ports"):
+            try:
+                candidates = tuple(self.serial.list_candidate_ports())  # type: ignore[attr-defined]
+            except Exception:
+                candidates = ()
+        if hasattr(self.serial, "last_error"):
+            last_error = getattr(self.serial, "last_error", None)
+        # Prefer live baud from bridge env if present
+        baud = self.baud_rate
+        if hasattr(self.serial, "baud_rate"):
+            baud = int(getattr(self.serial, "baud_rate") or baud)
         return SerialStatus(
             port=self.serial.resolve_port(),
-            baud_rate=self.baud_rate,
+            baud_rate=baud,
             connected=self.serial.is_connected(),
+            last_error=last_error,
+            candidates=candidates,
         )
 
     def connect_serial(self) -> bool:
@@ -52,6 +69,13 @@ class SettingsService:
 
     def disconnect_serial(self) -> None:
         self.serial.disconnect()
+
+    def send_test_password_ok(self) -> bool:
+        """Send PASSWORD_OK (Ahmed firmware: buzzer pattern + unlock)."""
+        return self.serial.send_command("PASSWORD_OK")
+
+    def send_test_command(self, command: str) -> bool:
+        return self.serial.send_command(command)
 
     def inference_summary(self) -> InferenceSummary:
         try:

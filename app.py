@@ -1,5 +1,10 @@
 import streamlit as st
 
+from utils.env_loader import load_dotenv
+
+# Must run before serial/ML config is read.
+load_dotenv(".env")
+
 from components.header import show_header
 from utils.state import initialize_state
 from ai.predict import get_pipeline
@@ -24,11 +29,11 @@ st.divider()
 st.markdown(
     """
 ### Workflow
-1. **Password** — say `open` (Whisper STT + enrolled speaker). Red LED unlocks Arduino.
-2. **Voice Control** — say `light on/off` or `music on/off`.
-3. **Devices** — manual toggles and temperature readout.
-4. **Activity Log** — persisted history of recognized commands.
-5. **Settings** — serial port connection.
+1. **Settings** — Connect Arduino (set `ARDUINO_PORT`, click **Test PASSWORD_OK**).
+2. **Password** — say `open` (Whisper STT + enrolled speaker). Buzzer beeps on unlock.
+3. **Voice Control** — say `light on/off` or `music on/off`.
+4. **Devices** — manual toggles and temperature readout.
+5. **Activity Log** — persisted history of recognized commands.
 """
 )
 

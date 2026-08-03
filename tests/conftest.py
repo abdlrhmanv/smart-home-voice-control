@@ -16,6 +16,12 @@ for path in (ROOT, ML):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+# Skip Ahmed PASSWORD_OK buzzer settle delay in unit tests.
+import os
+
+os.environ.setdefault("ARDUINO_PASSWORD_SETTLE_S", "0")
+os.environ.setdefault("ARDUINO_CONNECT_SETTLE_S", "0")
+
 
 @pytest.fixture
 def tmp_wav(tmp_path: Path) -> Path:

@@ -17,6 +17,14 @@ def disconnect_serial() -> None:
     get_container().settings.disconnect_serial()
 
 
+def send_test_password_ok() -> bool:
+    return get_container().settings.send_test_password_ok()
+
+
+def send_test_command(command: str) -> bool:
+    return get_container().settings.send_test_command(command)
+
+
 def inference_summary():
     return get_container().settings.inference_summary()
 

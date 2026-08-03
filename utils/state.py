@@ -1,7 +1,10 @@
 import streamlit as st
 
+from utils.env_loader import load_dotenv
+
 
 def initialize_state() -> None:
+    load_dotenv(".env")
     defaults = {
         "light": False,
         "music": False,

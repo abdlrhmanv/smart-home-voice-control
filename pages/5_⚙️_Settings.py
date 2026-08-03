@@ -14,13 +14,22 @@ st.title("Settings")
 st.write("Serial port, inference config, and model calibration.")
 st.divider()
 
-st.subheader("Arduino serial")
+st.subheader("Arduino serial (Ahmed firmware)")
+st.caption(
+    "Pins: Buzzer D11 · Green LED D13 · White LED D12 · Temp A0 · 9600 baud. "
+    "Commands: PASSWORD_OK / FAIL, LIGHT_*, MUSIC_*, SEND_TEMP."
+)
 status = settings_service.serial_status()
-st.write(f"Detected / configured port: `{status.port or 'none'}`")
+st.write(f"Resolved port: `{status.port or 'none'}`")
 st.write(f"Baud rate: `{status.baud_rate}`")
-st.caption("Override with environment variable `ARDUINO_PORT` (e.g. `/dev/ttyUSB0` or `COM11`).")
+if status.candidates:
+    st.write("Candidates:", ", ".join(f"`{p}`" for p in status.candidates))
+else:
+    st.write("Candidates: none — plug Arduino USB and/or set `ARDUINO_PORT`.")
+if status.last_error:
+    st.error(status.last_error)
 
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("Connect", use_container_width=True):
         ok = settings_service.connect_serial()
@@ -30,14 +39,27 @@ with c2:
         settings_service.disconnect_serial()
         st.info("Disconnected")
 with c3:
+    if st.button("Test PASSWORD_OK", use_container_width=True):
+        with st.spinner("Sending PASSWORD_OK (buzzer ~4.5s)…"):
+            ok = settings_service.send_test_password_ok()
+        if ok:
+            st.success("Sent. Buzzer should beep 3 times.")
+        else:
+            st.error(status.last_error or "Send failed — set ARDUINO_PORT and reconnect.")
+with c4:
     st.metric("Link", "Online" if status.connected else "Offline")
+
+st.caption(
+    "Local tip: `export ARDUINO_PORT=/dev/ttyACM0` (or ttyUSB0), then restart Streamlit. "
+    "User must be in the `dialout` group on Linux."
+)
 
 st.divider()
 st.subheader("Inference thresholds")
 st.write(
     "Low-confidence predictions are rejected (`unknown`) and not sent to Arduino. "
     "Password requires Whisper phrase match **and** an enrolled speaker. "
-    "Configure via `.env.example` / `InferenceConfig`."
+    "Configure via `.env` / `InferenceConfig`."
 )
 summary = settings_service.inference_summary()
 st.write(
@@ -87,20 +109,21 @@ else:
         st.dataframe(points, use_container_width=True, hide_index=True)
 
 st.divider()
-st.subheader("LED wiring")
+st.subheader("LED / buzzer wiring (Ahmed sketch)")
 st.markdown(
     """
-| LED | Pin | Role |
-|-----|-----|------|
-| Red | D11 | Password unlock |
-| Green | D12 | Music |
-| White | D10 | Light (optional on 2-LED boards) |
-| Buzzer | D13 | Beeps |
+| Device | Pin | Role |
+|--------|-----|------|
+| Buzzer | D11 | Password unlock beeps |
+| White LED | D12 | Light |
+| Green LED | D13 | Music |
+| TMP sensor | A0 | Temperature |
 
-If you only wired red + green, leave D10 empty — `LIGHT_ON`/`OFF` still send, but no white LED will light.
+`PASSWORD_OK` unlocks the board; until then LIGHT/MUSIC/TEMP are ignored.
 """
 )
 
 st.divider()
 st.subheader("Session")
 st.write("Authenticated:", st.session_state.authenticated)
+st.write("Arduino synced:", st.session_state.get("arduino_synced", False))

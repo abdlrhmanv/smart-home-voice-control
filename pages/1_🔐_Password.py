@@ -27,16 +27,46 @@ with col_b:
         st.rerun()
 
 
+def _hardware_expected() -> bool:
+    """True when a local Arduino is configured or auto-detected."""
+    import os
+
+    if (os.environ.get("ARDUINO_PORT") or "").strip():
+        return True
+    try:
+        from api.serial_service import get_bridge
+
+        return bool(get_bridge().list_candidate_ports())
+    except Exception:
+        return False
+
+
 def _show_auth_result(result) -> None:
     unlocked = getattr(result, "unlocked", st.session_state.get("authenticated"))
     synced = getattr(result, "arduino_synced", st.session_state.get("arduino_synced"))
     if result.password_ok and unlocked:
         st.success(result.message)
         st.info("You can now use Voice Control and Devices.")
-        if not synced:
-            st.warning(
-                "Password accepted in software, but Arduino did not receive "
-                "PASSWORD_OK (check USB / ARDUINO_PORT). Offline demo mode is on."
+        if synced:
+            st.success(
+                "Arduino received PASSWORD_OK — buzzer should beep 3 times "
+                "(Ahmed firmware). Now try light/music commands."
+            )
+        elif _hardware_expected():
+            from api.serial_service import get_bridge
+
+            err = get_bridge().last_error or "unknown serial error"
+            st.error(
+                "UI unlocked, but Arduino did NOT get PASSWORD_OK. "
+                f"Detail: {err}. "
+                "Fix: plug USB, `export ARDUINO_PORT=/dev/ttyACM0` (or ttyUSB0), "
+                "add your user to `dialout`, reopen Settings → Connect → Test PASSWORD_OK, "
+                "then restart `streamlit run app.py`."
+            )
+        else:
+            st.caption(
+                "Software unlock only — no Arduino detected. "
+                "For hardware: set ARDUINO_PORT and use Settings → Test PASSWORD_OK."
             )
     elif result.password_ok and not unlocked:
         st.error(

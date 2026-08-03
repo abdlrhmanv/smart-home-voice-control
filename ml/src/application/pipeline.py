@@ -143,7 +143,7 @@ class SmartHomePipeline:
             transcript=transcript,
             speaker=speaker_name,
             speaker_confidence=speaker_conf,
-            message=f"Password accepted{who}. Arduino unlocked (red LED ON).",
+            message=f"Password accepted{who}. Home unlocked.",
             action=self.actions.password_ok(),
             accepted=True,
         )

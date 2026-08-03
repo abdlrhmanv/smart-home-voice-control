@@ -1,7 +1,7 @@
 """Arduino serial bridge — TX commands and RX temperature replies.
 
-Prefer injecting a ``SerialBridge`` (or a fake) via ``set_bridge()`` in tests.
-Module-level helpers remain for the Streamlit app.
+Matches Ahmed's firmware protocol (9600 baud, newline-terminated):
+  PASSWORD_OK | PASSWORD_FAIL | LIGHT_ON | LIGHT_OFF | MUSIC_ON | MUSIC_OFF | SEND_TEMP
 """
 
 from __future__ import annotations
@@ -16,10 +16,23 @@ from serial.tools import list_ports
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PORT = os.environ.get("ARDUINO_PORT", "")
-BAUD_RATE = int(os.environ.get("ARDUINO_BAUD", "9600"))
-CONNECT_SETTLE_S = 2.0
+# Ahmed's PASSWORD_OK blocks ~4.5s (3× beep with delays). Wait before next TX.
+PASSWORD_OK_SETTLE_S = float(os.environ.get("ARDUINO_PASSWORD_SETTLE_S", "4.6"))
+CONNECT_SETTLE_S = float(os.environ.get("ARDUINO_CONNECT_SETTLE_S", "2.0"))
 READ_TIMEOUT_S = 1.0
+
+
+def env_port() -> str:
+    return (os.environ.get("ARDUINO_PORT") or "").strip()
+
+
+def env_baud() -> int:
+    return int(os.environ.get("ARDUINO_BAUD", "9600"))
+
+
+# Back-compat for tests that patch these names.
+DEFAULT_PORT = env_port()
+BAUD_RATE = env_baud()
 
 
 class SerialPort(Protocol):
@@ -42,58 +55,72 @@ class SerialBridge:
         default_port: str | None = None,
         baud_rate: int | None = None,
     ) -> None:
-        self.default_port = DEFAULT_PORT if default_port is None else default_port
-        self.baud_rate = BAUD_RATE if baud_rate is None else baud_rate
+        self.default_port = env_port() if default_port is None else default_port
+        self.baud_rate = env_baud() if baud_rate is None else baud_rate
         self._arduino: Optional[serial.Serial] = None
+        self.last_error: str | None = None
+        self.last_port: str | None = None
+
+    def refresh_from_env(self) -> None:
+        """Pick up ARDUINO_PORT / baud changed after process start."""
+        self.default_port = env_port()
+        self.baud_rate = env_baud()
+
+    def list_candidate_ports(self) -> list[str]:
+        found: list[str] = []
+        for port in list_ports.comports():
+            blob = f"{port.device} {port.description} {port.manufacturer or ''}".lower()
+            dev = port.device.lower()
+            if (
+                any(k in blob for k in ("arduino", "ch340", "ch341", "usb serial", "usbmodem"))
+                or "ttyacm" in dev
+                or "ttyusb" in dev
+                or "cu.usb" in dev
+            ):
+                found.append(port.device)
+        return found
 
     def resolve_port(self) -> Optional[str]:
         """Prefer configured port; otherwise pick a common Arduino USB device."""
+        self.refresh_from_env()
         if self.default_port:
             return self.default_port
 
-        keywords = (
-            "arduino",
-            "ch340",
-            "ch341",
-            "usb serial",
-            "usbmodem",
-            "ttyacm",
-            "ttyusb",
-        )
-        for port in list_ports.comports():
-            blob = f"{port.device} {port.description} {port.manufacturer or ''}".lower()
-            if any(k in blob for k in keywords):
-                return port.device
+        found = self.list_candidate_ports()
+        if found:
+            return found[0]
 
-        logger.warning(
-            "No Arduino-like serial port found. Set ARDUINO_PORT explicitly "
-            "(e.g. /dev/ttyUSB0 or COM11)."
+        self.last_error = (
+            "No Arduino-like serial port found. "
+            "Plug in USB and set ARDUINO_PORT (e.g. /dev/ttyACM0 or /dev/ttyUSB0)."
         )
+        logger.warning("%s", self.last_error)
         return None
 
     def connect(self, port: str | None = None) -> bool:
         if self._arduino is not None and self._arduino.is_open:
             return True
 
+        self.refresh_from_env()
         target = port or self.resolve_port()
         if not target:
-            logger.warning(
-                "No Arduino serial port found. Set ARDUINO_PORT "
-                "(e.g. /dev/ttyUSB0 or COM11)."
-            )
             return False
 
         try:
             self._arduino = serial.Serial(
                 target, self.baud_rate, timeout=READ_TIMEOUT_S
             )
+            # Opening the port resets most Uno/Nano boards — wait for reboot.
             time.sleep(CONNECT_SETTLE_S)
             self._arduino.reset_input_buffer()
+            self.last_port = target
+            self.last_error = None
             logger.info("Arduino connected on %s @ %s", target, self.baud_rate)
             return True
         except Exception as exc:
             self._arduino = None
-            logger.error("Arduino connection failed on %s: %s", target, exc)
+            self.last_error = f"Connection failed on {target}: {exc}"
+            logger.error("%s", self.last_error)
             return False
 
     def disconnect(self) -> None:
@@ -108,18 +135,25 @@ class SerialBridge:
         return self._arduino is not None and self._arduino.is_open
 
     def send_command(self, command: str) -> bool:
+        self.refresh_from_env()
         if self._arduino is None or not self._arduino.is_open:
             if not self.connect():
                 return False
 
         assert self._arduino is not None
         try:
-            self._arduino.write((command.strip() + "\n").encode("ascii"))
+            payload = (command.strip() + "\n").encode("ascii")
+            self._arduino.write(payload)
             self._arduino.flush()
-            logger.debug("Sent: %s", command)
+            logger.info("Sent to Arduino: %s", command.strip())
+            # Ahmed's sketch blocks in delay() during PASSWORD_OK beeps.
+            if command.strip() == "PASSWORD_OK" and PASSWORD_OK_SETTLE_S > 0:
+                time.sleep(PASSWORD_OK_SETTLE_S)
+            self.last_error = None
             return True
         except Exception as exc:
-            logger.error("Failed to send %r: %s", command, exc)
+            self.last_error = f"Failed to send {command!r}: {exc}"
+            logger.error("%s", self.last_error)
             self.disconnect()
             return False
 
@@ -134,7 +168,8 @@ class SerialBridge:
             try:
                 raw = self._arduino.readline()
             except Exception as exc:
-                logger.error("Serial read failed: %s", exc)
+                self.last_error = f"Serial read failed: {exc}"
+                logger.error("%s", self.last_error)
                 return None
             if raw:
                 return raw.decode("utf-8", errors="replace").strip()
@@ -145,6 +180,7 @@ class SerialBridge:
         if not self.send_command("SEND_TEMP"):
             return None
 
+        # Ahmed replies "Tempratute: <float> C"
         line = self.read_line(timeout_s=timeout_s)
         if not line:
             return None
@@ -174,13 +210,16 @@ def set_bridge(bridge: SerialBridge | None = None) -> SerialBridge:
 
 
 def resolve_port() -> Optional[str]:
-    # Keep env override in sync for callers that patch DEFAULT_PORT in tests.
-    _bridge.default_port = DEFAULT_PORT
+    global DEFAULT_PORT
+    DEFAULT_PORT = env_port()
+    if hasattr(_bridge, "refresh_from_env"):
+        _bridge.refresh_from_env()
     return _bridge.resolve_port()
 
 
 def connect(port: str | None = None) -> bool:
-    _bridge.default_port = DEFAULT_PORT
+    if hasattr(_bridge, "refresh_from_env"):
+        _bridge.refresh_from_env()
     return _bridge.connect(port)
 
 
@@ -193,15 +232,18 @@ def is_connected() -> bool:
 
 
 def send_command(command: str) -> bool:
-    _bridge.default_port = DEFAULT_PORT
+    if hasattr(_bridge, "refresh_from_env"):
+        _bridge.refresh_from_env()
     return _bridge.send_command(command)
 
 
 def read_line(timeout_s: float = 2.0) -> Optional[str]:
-    _bridge.default_port = DEFAULT_PORT
+    if hasattr(_bridge, "refresh_from_env"):
+        _bridge.refresh_from_env()
     return _bridge.read_line(timeout_s=timeout_s)
 
 
 def request_temperature(timeout_s: float = 2.0) -> Optional[float]:
-    _bridge.default_port = DEFAULT_PORT
+    if hasattr(_bridge, "refresh_from_env"):
+        _bridge.refresh_from_env()
     return _bridge.request_temperature(timeout_s=timeout_s)
