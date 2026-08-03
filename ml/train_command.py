@@ -25,6 +25,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--test-size", type=float, default=TRAINING.test_size)
     p.add_argument("--tune", action="store_true")
     p.add_argument("--seed", type=int, default=TRAINING.random_state)
+    p.add_argument(
+        "--no-calibrate",
+        action="store_true",
+        help="Disable CalibratedClassifierCV (default: on)",
+    )
+    p.add_argument(
+        "--augment",
+        action="store_true",
+        help="Add noise/gain copies of train waveforms only",
+    )
+    p.add_argument("--augment-copies", type=int, default=1)
     return p.parse_args()
 
 
@@ -34,6 +45,9 @@ def main() -> None:
         test_size=args.test_size,
         random_state=args.seed,
         tune=args.tune,
+        calibrate=not args.no_calibrate,
+        augment=args.augment,
+        augment_copies=args.augment_copies,
     )
     dataset = FilesystemDatasetRepository(args.data)
     print(f"Dataset : {dataset.root()}")

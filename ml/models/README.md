@@ -1,23 +1,17 @@
-# Saved models
+# Model artifacts
 
-| File | Task |
-| ---- | ---- |
-| `speaker.pkl` | speaker recognition |
-| `command.pkl` | command recognition |
+| File | Task | Algorithm | Features |
+|------|------|-----------|----------|
+| `speaker.pkl` | Speaker ID | Scaler + RBF SVM + CalibratedClassifierCV | 122-D (no CMVN) |
+| `command.pkl` | Command class | Scaler + RBF SVM + CalibratedClassifierCV | 282-D + CMVN (train may include `--augment`) |
 
-These files are committed so Streamlit can load them after `git pull`.
-
-```python
-# from Project2/ml (or repo root/ml)
-from src.application import SmartHomePipeline
-
-pipe = SmartHomePipeline.create_default()
-# loads ml/models/speaker.pkl and ml/models/command.pkl automatically
-```
-
-Retrain locally if needed:
+Serialized with **joblib**. Retrain:
 
 ```bash
-python train_speaker.py --tune
-python train_command.py --tune
+python train_speaker.py
+python train_command.py --augment
+python eval_loso.py
+python eval_nested_cv.py --task command --no-tune
 ```
+
+Use `--no-calibrate` only for ablation. Do not commit large experimental checkpoints.

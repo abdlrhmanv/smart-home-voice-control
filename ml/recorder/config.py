@@ -10,6 +10,10 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 SPEAKER_NAME = "Abdlrhman"
 
+# Multi-condition sessions: close | distance | noise | rate
+# Files go to data/dataset/<speaker>/<command>/<RECORDING_CONDITION>/
+RECORDING_CONDITION = "close"
+
 COMMANDS: list[tuple[str, str]] = [
     ("light_on", "light on"),
     ("light_off", "light off"),

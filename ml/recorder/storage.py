@@ -11,7 +11,7 @@ class RecordingDatasetRepository:
     """
     UI → RecordingSession → RecordingDatasetRepository.
 
-    Owns paths under ``data/dataset/<speaker>/<command>/``.
+    Owns paths under ``data/dataset/<speaker>/<command>/<condition>/``.
     """
 
     def __init__(
@@ -20,19 +20,21 @@ class RecordingDatasetRepository:
         root: Path | None = None,
         recordings_per_command: int = config.RECORDINGS_PER_COMMAND,
         commands: list[tuple[str, str]] | None = None,
+        condition: str | None = None,
     ) -> None:
         self.speaker_name = speaker_name
         self.root = Path(root) if root else config.DATASET_ROOT
         self.recordings_per_command = recordings_per_command
         self.commands = commands or list(config.COMMANDS)
+        self.condition = condition or config.RECORDING_CONDITION
         self.speaker_dir = self.root / self.speaker_name
 
     def ensure_layout(self) -> None:
         for folder_name, _phrase in self.commands:
-            (self.speaker_dir / folder_name).mkdir(parents=True, exist_ok=True)
+            self.command_dir(folder_name).mkdir(parents=True, exist_ok=True)
 
     def command_dir(self, command_key: str) -> Path:
-        return self.speaker_dir / command_key
+        return self.speaker_dir / command_key / self.condition
 
     def wav_path(self, command_key: str, index: int) -> Path:
         return self.command_dir(command_key) / f"{command_key}_{index:03d}.wav"
