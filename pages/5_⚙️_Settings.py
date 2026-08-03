@@ -14,10 +14,10 @@ st.title("Settings")
 st.write("Serial port, inference config, and model calibration.")
 st.divider()
 
-st.subheader("Arduino serial (Ahmed firmware)")
+st.subheader("Arduino serial (Ahmed sketch — unchanged)")
 st.caption(
-    "Pins: Buzzer D11 · Green LED D13 · White LED D12 · Temp A0 · 9600 baud. "
-    "Commands: PASSWORD_OK / FAIL, LIGHT_*, MUSIC_*, SEND_TEMP."
+    "Buzzer D11 · WHITE/LIGHT pin D12 · GREEN/MUSIC pin D13 · Temp A0 · 9600 baud. "
+    "App swaps light↔music serial tokens to match the breadboard LEDs."
 )
 status = settings_service.serial_status()
 st.write(f"Resolved port: `{status.port or 'none'}`")
@@ -109,17 +109,18 @@ else:
         st.dataframe(points, use_container_width=True, hide_index=True)
 
 st.divider()
-st.subheader("LED / buzzer wiring (Ahmed sketch)")
+st.subheader("LED / buzzer wiring (Ahmed `.ino`)")
 st.markdown(
     """
-| Device | Pin | Role |
-|--------|-----|------|
-| Buzzer | D11 | Password unlock beeps |
-| White LED | D12 | Light |
-| Green LED | D13 | Music |
-| TMP sensor | A0 | Temperature |
+| Device | Pin | Sketch command |
+|--------|-----|----------------|
+| Buzzer | D11 | `PASSWORD_OK` / `PASSWORD_FAIL` |
+| WHITE LED | D12 | `LIGHT_ON` / `LIGHT_OFF` |
+| GREEN LED | D13 | `MUSIC_ON` / `MUSIC_OFF` |
+| TMP sensor | A0 | `SEND_TEMP` |
 
-`PASSWORD_OK` unlocks the board; until then LIGHT/MUSIC/TEMP are ignored.
+Python maps spoken **light** → `MUSIC_*` and **music** → `LIGHT_*` so the green
+LED on the breadboard follows music (Arduino file is not edited).
 """
 )
 
