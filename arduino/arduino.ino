@@ -56,7 +56,7 @@ if (Serial.available() > 0) {
      
       else if (command == "SEND_TEMP")  {
         float temp = temprature();
-        Serial.print("Tempratute: ");
+        Serial.print("Temperature: ");
         Serial.print(temp);
         Serial.println(" C");
         
