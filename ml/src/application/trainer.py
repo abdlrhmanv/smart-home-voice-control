@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 
 from src.config import TRAINING, TrainingConfig
 from src.domain.models import ClassifierTask, TrainSplit
@@ -76,7 +76,7 @@ class ClassifierTrainer:
         _, counts = np.unique(y, return_counts=True)
         min_per_class = int(counts.min())
         min_needed = max(2, int(1 / cfg.test_size) if cfg.test_size else 2)
-        if min_per_class < min_needed:
+        if min_per_class < min_needed and not cfg.group_holdout:
             raise ValueError(
                 f"{self.task.name}: class with only {min_per_class} sample(s); "
                 f"need ≥{min_needed} per class for a stratified "
@@ -84,12 +84,31 @@ class ClassifierTrainer:
             )
 
         idx = np.arange(len(samples))
-        idx_train, idx_test = train_test_split(
-            idx,
-            test_size=cfg.test_size,
-            random_state=cfg.random_state,
-            stratify=y,
-        )
+        if cfg.group_holdout:
+            groups = np.asarray([s.speaker for s in samples])
+            n_groups = len(set(groups.tolist()))
+            if n_groups < 2:
+                raise ValueError(
+                    f"{self.task.name}: group_holdout needs ≥2 speakers; found {n_groups}."
+                )
+            splitter = GroupShuffleSplit(
+                n_splits=1,
+                test_size=cfg.test_size,
+                random_state=cfg.random_state,
+            )
+            idx_train, idx_test = next(splitter.split(idx, y, groups))
+            print(
+                f"Group holdout by speaker — "
+                f"train speakers={sorted(set(groups[idx_train]))} "
+                f"test speakers={sorted(set(groups[idx_test]))}"
+            )
+        else:
+            idx_train, idx_test = train_test_split(
+                idx,
+                test_size=cfg.test_size,
+                random_state=cfg.random_state,
+                stratify=y,
+            )
 
         X_test, y_test = X[idx_test], y[idx_test]
         X_train, y_train = X[idx_train], y[idx_train]

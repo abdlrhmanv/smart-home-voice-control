@@ -19,12 +19,20 @@ class ProjectPaths:
         return cls(root=ml_root)
 
     @property
+    def data_dir(self) -> Path:
+        return self.root / "data"
+
+    @property
     def dataset_dir(self) -> Path:
-        return self.root / "data" / "dataset"
+        return self.data_dir / "dataset"
 
     @property
     def models_dir(self) -> Path:
         return self.root / "models"
+
+    @property
+    def reports_dir(self) -> Path:
+        return self.root / "reports"
 
     def artifact(self, filename: str) -> Path:
         return self.models_dir / filename

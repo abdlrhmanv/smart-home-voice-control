@@ -88,8 +88,11 @@ def nested_cv(
         y_tr, y_te = y[tr], y[te]
 
         if tune:
+            # Guard by minimum per-class count, not number of classes.
+            _, counts = np.unique(y_tr, return_counts=True)
+            n_inner = max(2, min(3, int(counts.min())))
             inner = StratifiedKFold(
-                n_splits=min(3, len(np.unique(y_tr))),
+                n_splits=n_inner,
                 shuffle=True,
                 random_state=cfg.random_state,
             )

@@ -1,29 +1,18 @@
-import streamlit as st
+"""Recognition-result helpers (delegate to the session store)."""
+
+from __future__ import annotations
+
+from core.container import get_container
 
 
 def set_recognition_result(user, command, confidence):
-    """
-    Save recognition result in Session State.
-    """
-
-    st.session_state.last_user = user
-    st.session_state.last_command = command
-    st.session_state.confidence = confidence
-
-    st.session_state.recognition_result = {
-        "user": user,
-        "command": command,
-        "confidence": confidence
-    }
+    get_container().store.set_recognition(user, command, confidence)
 
 
 def get_recognition_result():
-    """
-    Return last recognition result.
-    """
-
+    store = get_container().store
     return {
-        "user": st.session_state.last_user,
-        "command": st.session_state.last_command,
-        "confidence": st.session_state.confidence
+        "user": store.get_last_user(),
+        "command": store.get_last_command(),
+        "confidence": store.get_confidence(),
     }

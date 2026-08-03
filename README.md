@@ -10,15 +10,16 @@ Canonical team repo: https://github.com/abdlrhmanv/smart-home-voice-control
 
 | Feature | Status |
 |---------|--------|
-| Voice password via STT (`open sesame`) | Implemented |
+| Voice password via STT (`open sesame`) | Implemented (phrase + enrolled speaker) |
 | Red LED / Arduino unlock on success | Implemented (`PASSWORD_OK`) |
 | Wrong password feedback | Implemented (`PASSWORD_FAIL`) |
-| Speaker identification (SVM) | Implemented |
+| Speaker identification (SVM) | Implemented (+ avatar on Voice page) |
 | Command classification: light/music on/off | Implemented |
+| Laptop music playback on `music on` | Implemented (looping synth + green LED) |
 | Streamlit GUI | Implemented |
 | Arduino serial control | Implemented |
 | Temperature display | Implemented (Devices page) |
-| Macro F1 ≥ 0.85 on test set | Met (~0.98 for both models) |
+| Macro F1 ≥ 0.85 on test set | Met (~0.98 random split; LOSO still weak) |
 
 ---
 
@@ -26,28 +27,27 @@ Canonical team repo: https://github.com/abdlrhmanv/smart-home-voice-control
 
 ```
 Project2/
-├── app.py / pages/          # Streamlit multipage UI
-├── services/                # password, voice, device use-cases
-├── ai/predict.py            # façade → ml SmartHomePipeline
-├── api/serial_service.py    # Arduino TX/RX
+├── app.py / pages/          # Streamlit UI (thin)
+├── core/                    # Streamlit-free use-cases + ports
+│   ├── actions.py           # canonical command → Arduino catalog
+│   ├── home.py              # unlock / devices / temperature
+│   ├── password.py / voice.py / settings.py
+│   ├── container.py         # composition root
+│   └── memory_store.py      # test session store
+├── adapters/                # Streamlit session, music, ML, mic
+├── services/                # thin façades (stable page imports)
+├── ai/predict.py            # ML pipeline cache façade
+├── api/serial_service.py    # SerialBridge (injectable)
 ├── audio/recorder.py        # mic capture
 ├── arduino/arduino.ino      # firmware
-└── ml/
-    ├── src/
-    │   ├── domain/          # labels, dataclasses, paths
-    │   ├── ports/           # Classifier, FeatureExtractor, …
-    │   ├── application/     # Pipeline, Trainer, Evaluator
-    │   ├── infrastructure/  # librosa, sklearn, whisper, joblib
-    │   ├── actions/         # command → Arduino mapping
-    │   └── config.py
-    ├── recorder/            # Tkinter dataset recorder (isolated)
-    ├── train_speaker.py
-    ├── train_command.py
+└── ml/                      # Clean Architecture ML package
+    ├── src/{domain,ports,application,infrastructure}
+    ├── train_*.py / eval_*.py
     ├── data/dataset/<speaker>/<command>/*.wav
     └── models/{speaker,command}.pkl
 ```
 
-**Dependency rule:** application code depends on ports; `create_default()` is the composition root that wires infrastructure.
+**Dependency rule:** `pages` → `services` façades → `core` use-cases → ports; `adapters` + `api` implement ports. ML `create_default()` is the ML composition root; `core.container` is the app composition root.
 
 ```mermaid
 flowchart LR
@@ -152,10 +152,15 @@ python validate_dataset.py
 python scaffold_conditions.py    # optional multi-condition folders
 python train_speaker.py --tune
 python train_command.py --tune --augment
-python eval_loso.py              # leave-one-speaker-out
+python train_command.py --group-holdout   # harder speaker-disjoint holdout
+python eval_loso.py              # leave-one-speaker-out (primary cross-speaker claim)
 python eval_nested_cv.py --task command --no-tune
 python make_fixtures.py          # synthetic WAVs for offline e2e
+python report_calibration.py --task command   # fresh train→test (no artifact leak)
+python filter_quiet_clips.py     # dry-run; add --move to quarantine
 ```
+
+Streamlit Password / Voice pages also accept **WAV uploads** (no mic) for demos and Playwright.
 
 - Features: MFCC(40) + chroma + spectral contrast + ZCR + RMS (mean+std → 122-D)
 - Command extras: MFCC Δ/ΔΔ → 282-D + utterance CMVN
@@ -175,7 +180,10 @@ Copy `.env.example` and export vars before `streamlit run`:
 export WHISPER_SIZE=tiny          # faster/lighter password STT
 export ARDUINO_PORT=/dev/ttyUSB0
 export REQUIRE_KNOWN_SPEAKER=1
+export ALLOW_OFFLINE_CONTROL=1    # unlock UI even if Arduino is unplugged
 ```
+
+Speaker photos (optional): put PNGs in `assets/speakers/<speaker>.png` matching dataset folder names.
 
 ```bash
 python eval_loso.py          # with CMVN (default)
@@ -228,5 +236,7 @@ Covers labels, features, password normalization, action mapping, serial parsing,
 
 - Password requires phrase **and** enrolled speaker; phrase alone is not enough, but STT can still mis-hear.
 - Low-confidence predictions become `unknown` and are not sent to Arduino.
-- **Leave-one-speaker-out** command F1 is still near chance (~0.12–0.13) even with CMVN + MFCC deltas — same-speaker holdout F1 (~0.98) is what the course demo exercises. Collect more multi-condition / multi-mic data before claiming cross-speaker robustness.
+- **Leave-one-speaker-out** command F1 is still near chance (~0.11) even with CMVN + MFCC deltas — same-speaker holdout F1 (~0.98) is what the course demo exercises. Collect more multi-condition / multi-mic data before claiming cross-speaker robustness.
 - White LED pin (D10) may be unwired if the breadboard only has red + green LEDs.
+- `MUSIC_ON` plays a synthesized loop on the laptop speakers; replace with a real track in `services/music_player.py` if desired.
+- Serial autodetection only matches Arduino-like ports; set `ARDUINO_PORT` explicitly when needed.

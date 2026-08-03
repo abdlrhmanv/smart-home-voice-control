@@ -1,0 +1,28 @@
+{
+  "task": "command",
+  "generated_at": "2026-08-03T21:22:53.394187+00:00",
+  "n_test": 56,
+  "f1_macro": 0.9821200510855683,
+  "accuracy": 0.9821428571428571,
+  "brier_correct_vs_conf": 0.03528787513482369,
+  "mean_confidence": 0.8482062588362718,
+  "reliability": [
+    {
+      "mean_predicted_proba": 0.622856814400635,
+      "fraction_correct": 1.0
+    },
+    {
+      "mean_predicted_proba": 0.6628465804214255,
+      "fraction_correct": 0.75
+    },
+    {
+      "mean_predicted_proba": 0.8346040424381939,
+      "fraction_correct": 1.0
+    },
+    {
+      "mean_predicted_proba": 0.9014700575251424,
+      "fraction_correct": 1.0
+    }
+  ],
+  "note": "Evaluated current shipped model on a stratified holdout of re-extracted features (not nested CV)."
+}

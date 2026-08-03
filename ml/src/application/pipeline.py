@@ -186,6 +186,9 @@ class SmartHomePipeline:
             )
 
         accepted = not reasons
+        # Never expose an executable action when either gate fails.
+        if not accepted:
+            action = {}
         if accepted:
             message = (
                 f"Detected {speaker_name} saying "
@@ -216,5 +219,10 @@ class SmartHomePipeline:
         if not gate.password_ok or command_audio is None:
             return gate
         result = self.predict_voice_command(command_audio)
+        # Preserve gate outcome — command path always sets password_ok=False.
+        result.password_ok = True
         result.transcript = gate.transcript
+        if result.speaker is None and gate.speaker is not None:
+            result.speaker = gate.speaker
+            result.speaker_confidence = gate.speaker_confidence
         return result

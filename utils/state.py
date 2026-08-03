@@ -11,7 +11,9 @@ def initialize_state() -> None:
         "last_user": "Unknown",
         "confidence": 0.0,
         "authenticated": False,
+        "arduino_synced": False,
         "temperature": None,
+        "temperature_fresh": False,
         "activity_log": [],
     }
     for key, value in defaults.items():

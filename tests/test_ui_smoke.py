@@ -122,3 +122,34 @@ def test_voice_page_shows_lock_gate(streamlit_server):
         body = page.content().lower()
         assert "locked" in body or "authenticate" in body or "password" in body
         browser.close()
+
+
+@pytest.mark.ui
+def test_password_page_accepts_wav_upload_widget(streamlit_server):
+    """Uploader is present so Playwright can inject fixtures without a mic."""
+    from playwright.sync_api import sync_playwright
+
+    fixture = ROOT / "tests" / "fixtures" / "audio" / "noise.wav"
+    if not fixture.exists():
+        sys.path.insert(0, str(ROOT / "ml"))
+        from make_fixtures import write_fixtures
+
+        write_fixtures(fixture.parent)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(
+            f"{streamlit_server}/Password",
+            wait_until="domcontentloaded",
+            timeout=60_000,
+        )
+        page.wait_for_timeout(2500)
+        # Streamlit file_uploader renders an <input type="file">
+        file_input = page.locator('input[type="file"]')
+        assert file_input.count() >= 1
+        file_input.first.set_input_files(str(fixture))
+        page.wait_for_timeout(1500)
+        body = page.content().lower()
+        assert "verify uploaded password" in body or "upload" in body
+        browser.close()

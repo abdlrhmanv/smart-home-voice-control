@@ -39,11 +39,13 @@ with col1:
         st.rerun()
 
 with col2:
-    st.subheader("Music (green LED)")
+    st.subheader("Music (green LED + laptop audio)")
     st.write("Status:", "ON" if music else "OFF")
+    st.caption("MUSIC_ON plays a loop on the laptop and lights the green LED.")
     c1, c2 = st.columns(2)
     if c1.button("Music ON", use_container_width=True):
-        turn_music_on()
+        if not turn_music_on():
+            st.error("Could not start music (serial failed and offline mode off).")
         st.rerun()
     if c2.button("Music OFF", use_container_width=True):
         turn_music_off()
@@ -56,9 +58,14 @@ with col3:
             temp = get_temperature()
         if temp is None:
             st.error(
-                "No reading. Check the USB cable and ARDUINO_PORT, "
+                "No fresh reading. Check the USB cable and ARDUINO_PORT, "
                 "and unlock with PASSWORD_OK first."
             )
+            if st.session_state.temperature is not None:
+                st.caption(
+                    f"Last successful reading was "
+                    f"{st.session_state.temperature:.2f} °C (not refreshed)."
+                )
         else:
             st.success(f"{temp:.2f} °C")
     elif st.session_state.temperature is not None:

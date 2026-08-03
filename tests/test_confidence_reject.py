@@ -70,3 +70,33 @@ def test_accepts_high_confidence(tmp_path):
     assert result.accepted is True
     assert result.command == "light_on"
     assert result.action.get("arduino") == "LIGHT_ON"
+
+
+def test_rejects_low_speaker_confidence_clears_action(tmp_path):
+    cfg = InferenceConfig(min_command_confidence=0.5, min_speaker_confidence=0.8)
+    pipe = _pipe(speaker_conf=0.3, command_conf=0.95, cfg=cfg)
+    result = pipe.predict_voice_command(tmp_path / "x.wav")
+    assert result.accepted is False
+    assert result.speaker == "unknown"
+    assert result.command == "light_on"
+    assert result.action == {}
+
+
+def test_run_full_preserves_password_ok(tmp_path):
+    class OkTranscriber:
+        def check_password(self, audio_path, expected):
+            return True, "open sesame"
+
+    cfg = InferenceConfig(
+        min_command_confidence=0.5,
+        min_speaker_confidence=0.4,
+        require_known_speaker=False,
+    )
+    pipe = _pipe(speaker_conf=0.9, command_conf=0.9, cfg=cfg)
+    pipe.transcriber = OkTranscriber()
+    wav = tmp_path / "x.wav"
+    wav.write_bytes(b"")
+    result = pipe.run_full(wav, wav)
+    assert result.password_ok is True
+    assert result.transcript == "open sesame"
+    assert result.accepted is True

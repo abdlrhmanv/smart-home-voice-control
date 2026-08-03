@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
         help="Add noise/gain copies of train waveforms only",
     )
     p.add_argument("--augment-copies", type=int, default=1)
+    p.add_argument(
+        "--group-holdout",
+        action="store_true",
+        help="Hold out entire speakers (GroupShuffleSplit) for a harder test",
+    )
     return p.parse_args()
 
 
@@ -48,6 +53,7 @@ def main() -> None:
         calibrate=not args.no_calibrate,
         augment=args.augment,
         augment_copies=args.augment_copies,
+        group_holdout=args.group_holdout,
     )
     dataset = FilesystemDatasetRepository(args.data)
     print(f"Dataset : {dataset.root()}")

@@ -28,6 +28,8 @@ class TrainingConfig:
     # Waveform noise/gain copies while building the training matrix
     augment: bool = False
     augment_copies: int = 1
+    # Hold out entire speakers (GroupShuffleSplit) — honest for command ID.
+    group_holdout: bool = False
     param_grid: dict = field(
         default_factory=lambda: {
             "clf__C": [1.0, 10.0, 50.0],

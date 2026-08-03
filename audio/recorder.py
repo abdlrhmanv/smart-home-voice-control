@@ -1,34 +1,31 @@
+"""Microphone capture for password / command utterances."""
+
+from __future__ import annotations
+
+import uuid
+from pathlib import Path
+
 import sounddevice as sd
 from scipy.io.wavfile import write
-from pathlib import Path
 
 SAMPLE_RATE = 16000
 DURATION = 3
 
 
-def record_audio():
+def record_audio(dest_dir: str | Path = "temp") -> str:
     """
-    Record audio from microphone and save it as temp/input.wav
+    Record audio from the microphone and save a unique WAV under ``temp/``.
     """
-
-    output_folder = Path("temp")
-    output_folder.mkdir(exist_ok=True)
-
-    filename = output_folder / "input.wav"
-
-    print("Recording...")
+    output_folder = Path(dest_dir)
+    output_folder.mkdir(parents=True, exist_ok=True)
+    filename = output_folder / f"input_{uuid.uuid4().hex[:10]}.wav"
 
     recording = sd.rec(
         int(DURATION * SAMPLE_RATE),
         samplerate=SAMPLE_RATE,
         channels=1,
-        dtype="int16"
+        dtype="int16",
     )
-
     sd.wait()
-
     write(filename, SAMPLE_RATE, recording)
-
-    print("Recording Finished.")
-
     return str(filename)
