@@ -1,24 +1,18 @@
-# Dataset layout
-
-Team voice recordings only:
+# Dataset
 
 ```
-dataset/
-├── ahmed/{light_on,light_off,music_on,music_off}/
-├── abdullah/…
-└── Abdlrhman/…
+dataset/<speaker>/<command>/*.wav
 ```
 
-Target: **25+ clips** per command per person.
+Speakers must match `src/domain/labels.py` (`ahmed`, `abdullah`, `Abdlrhman`).  
+Commands: `light_on`, `light_off`, `music_on`, `music_off`.
 
-Naming (Tkinter recorder):
+**Target:** ≥25 WAV files per command per speaker (100 total / person).
 
-```
-light_on_001.wav …
-```
+| Speaker   | Status |
+|-----------|--------|
+| ahmed     | 100 clips |
+| Abdlrhman | 100 clips |
+| abdullah  | 80 clips (20 per command) |
 
-```bash
-cd Project2/ml
-python recorder_app.py
-python inventory.py
-```
+Use `python inventory.py` for live counts. Record with `python recorder_app.py`.

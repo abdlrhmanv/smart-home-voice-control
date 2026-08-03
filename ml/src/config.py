@@ -36,6 +36,10 @@ class InferenceConfig:
     whisper_size: str = "base"
     device: str = "cpu"
     language: str = "en"
+    # Reject predictions below these probabilities (0–1). Set to 0 to disable.
+    min_command_confidence: float = 0.55
+    min_speaker_confidence: float = 0.45
+    unknown_label: str = "unknown"
 
 
 # Module-level defaults used by factories

@@ -46,6 +46,7 @@ class SmartHomePipeline:
         command_labels: LabelMap,
         action_mapper: CommandActionMapper | None = None,
         password: str | None = None,
+        config: InferenceConfig | None = None,
     ) -> None:
         self.speaker_clf = speaker_clf
         self.command_clf = command_clf
@@ -54,7 +55,8 @@ class SmartHomePipeline:
         self.speaker_labels = speaker_labels
         self.command_labels = command_labels
         self.actions = action_mapper or CommandActionMapper()
-        self.password = password if password is not None else INFERENCE.password
+        self.config = config or INFERENCE
+        self.password = password if password is not None else self.config.password
 
     @classmethod
     def create_default(
@@ -73,6 +75,7 @@ class SmartHomePipeline:
             speaker_labels=SPEAKER_TASK.labels,
             command_labels=COMMAND_TASK.labels,
             password=cfg.password,
+            config=cfg,
         )
 
     def reload(self, model_loader: ModelLoader | None = None) -> None:
@@ -86,32 +89,72 @@ class SmartHomePipeline:
             return InferenceResult(
                 password_ok=True,
                 transcript=transcript,
-                message="Password accepted. Red LED should turn ON.",
+                message="Password accepted. Arduino unlocked (red LED ON).",
                 action=self.actions.password_ok(),
+                accepted=True,
             )
         return InferenceResult(
             password_ok=False,
             transcript=transcript,
             message="Wrong password. Please record again.",
             action=self.actions.password_fail(),
+            accepted=False,
+            rejected_reason="wrong_password",
         )
 
     def predict_voice_command(self, audio_path: str | Path) -> InferenceResult:
+        """Classify speaker + command. Does not verify password — call
+        ``verify_password`` (or ``run_full``) first when gating is required.
+
+        Low-confidence predictions are rejected (``accepted=False``) and the
+        corresponding label is replaced with ``config.unknown_label``.
+        """
         features = self.features.extract_from_file(audio_path)
         speaker = _predict_labeled(self.speaker_clf, features, self.speaker_labels)
         command = _predict_labeled(self.command_clf, features, self.command_labels)
+
+        cfg = self.config
+        unknown = cfg.unknown_label
+        reasons: list[str] = []
+
+        speaker_name = speaker.name
+        if speaker.confidence < cfg.min_speaker_confidence:
+            speaker_name = unknown
+            reasons.append(
+                f"speaker_confidence {speaker.confidence:.2f} "
+                f"< {cfg.min_speaker_confidence:.2f}"
+            )
+
+        command_name = command.name
+        action = self.actions.map(command.name)
+        if command.confidence < cfg.min_command_confidence:
+            command_name = unknown
+            action = {}
+            reasons.append(
+                f"command_confidence {command.confidence:.2f} "
+                f"< {cfg.min_command_confidence:.2f}"
+            )
+
+        accepted = not reasons
+        if accepted:
+            message = (
+                f"Detected {speaker_name} saying "
+                f"'{command_name.replace('_', ' ')}'."
+            )
+        else:
+            message = "Rejected: " + "; ".join(reasons)
+
         return InferenceResult(
-            password_ok=True,
+            password_ok=False,
             transcript="",
-            speaker=speaker.name,
+            speaker=speaker_name,
             speaker_confidence=speaker.confidence,
-            command=command.name,
+            command=command_name,
             command_confidence=command.confidence,
-            action=self.actions.map(command.name),
-            message=(
-                f"Detected {speaker.name} saying "
-                f"'{command.name.replace('_', ' ')}'."
-            ),
+            action=action,
+            message=message,
+            accepted=accepted,
+            rejected_reason="; ".join(reasons) if reasons else None,
         )
 
     def run_full(

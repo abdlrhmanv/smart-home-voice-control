@@ -28,6 +28,8 @@ class InferenceResult:
     command_confidence: float | None = None
     action: dict[str, Any] | None = None
     message: str = ""
+    accepted: bool = True
+    rejected_reason: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -1,23 +1,15 @@
-# Saved models
+# Model artifacts
 
-| File | Task |
-| ---- | ---- |
-| `speaker.pkl` | speaker recognition |
-| `command.pkl` | command recognition |
+| File | Task | Algorithm |
+|------|------|-----------|
+| `speaker.pkl` | Speaker ID | `StandardScaler` + RBF SVM |
+| `command.pkl` | Command class | `StandardScaler` + RBF SVM |
 
-These files are committed so Streamlit can load them after `git pull`.
-
-```python
-# from Project2/ml (or repo root/ml)
-from src.application import SmartHomePipeline
-
-pipe = SmartHomePipeline.create_default()
-# loads ml/models/speaker.pkl and ml/models/command.pkl automatically
-```
-
-Retrain locally if needed:
+Serialized with **joblib** as a sklearn `Pipeline`. Retrain:
 
 ```bash
 python train_speaker.py --tune
 python train_command.py --tune
 ```
+
+Do not commit large experimental checkpoints; keep only the evaluation-passing pair used by the app.

@@ -45,10 +45,23 @@ class ClassifierTrainer:
         X, y = self.build_xy()
 
         n_classes = len(set(y.tolist()))
-        required = 2 if self.task.target == "speaker" else 1
+        # Both tasks are multi-class; require at least 2 distinct labels so SVM
+        # and stratified splitting are well-defined.
+        required = 2
         if n_classes < required:
             raise ValueError(
                 f"{self.task.name} needs ≥{required} classes; found {n_classes}."
+            )
+
+        # Stratified split / 5-fold tune need enough samples per class.
+        _, counts = np.unique(y, return_counts=True)
+        min_per_class = int(counts.min())
+        min_needed = max(2, int(1 / self.config.test_size) if self.config.test_size else 2)
+        if min_per_class < min_needed:
+            raise ValueError(
+                f"{self.task.name}: class with only {min_per_class} sample(s); "
+                f"need ≥{min_needed} per class for a stratified "
+                f"{self.config.test_size:.0%} holdout."
             )
 
         X_train, X_test, y_train, y_test = train_test_split(

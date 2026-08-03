@@ -53,6 +53,8 @@ Thumbs.db
 # --- Streamlit / logs ---
 .streamlit/secrets.toml
 *.log
+data/activity_log.jsonl
+temp/
 
 # --- Arduino / build (when Person 3 adds firmware) ---
 **/build/
@@ -63,3 +65,4 @@ Thumbs.db
 # --- Misc ---
 *.tmp
 *.bak
+.coverage
