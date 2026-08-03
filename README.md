@@ -10,7 +10,7 @@ Canonical team repo: https://github.com/abdlrhmanv/smart-home-voice-control
 
 | Feature | Status |
 |---------|--------|
-| Voice password via STT (`open sesame`) | Implemented (phrase + enrolled speaker) |
+| Voice password via STT (`open`) | Implemented (phrase + enrolled speaker) |
 | Red LED / Arduino unlock on success | Implemented (`PASSWORD_OK`) |
 | Wrong password feedback | Implemented (`PASSWORD_FAIL`) |
 | Speaker identification (SVM) | Implemented (+ avatar on Voice page) |
@@ -52,7 +52,7 @@ Project2/
 ```mermaid
 flowchart LR
   Mic[Microphone] --> STT[Whisper STT]
-  STT -->|open sesame| Gate[PASSWORD_OK]
+  STT -->|open| Gate[PASSWORD_OK]
   Gate --> UI[Streamlit unlocked]
   Mic2[Command audio] --> Feat[MFCC + spectral features]
   Feat --> Spk[Speaker SVM]
@@ -113,7 +113,7 @@ streamlit run app.py
 
 **User flow**
 
-1. **Password** page → say `open sesame`
+1. **Password** page → say `open`
 2. **Voice Control** → say `light on` / `light off` / `music on` / `music off`
 3. **Devices** → manual toggles + **Read temperature**
 4. **Activity Log** / **Settings** as needed

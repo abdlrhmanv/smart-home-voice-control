@@ -13,7 +13,7 @@ show_header()
 
 st.title("Smart Home Authentication")
 st.write(
-    'Say the voice password ("open sesame"). '
+    'Say the voice password ("open"). '
     "An enrolled speaker voice is also required to unlock."
 )
 st.divider()

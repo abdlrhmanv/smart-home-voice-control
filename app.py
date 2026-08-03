@@ -24,7 +24,7 @@ st.divider()
 st.markdown(
     """
 ### Workflow
-1. **Password** — say `open sesame` (Whisper STT + enrolled speaker). Red LED unlocks Arduino.
+1. **Password** — say `open` (Whisper STT + enrolled speaker). Red LED unlocks Arduino.
 2. **Voice Control** — say `light on/off` or `music on/off`.
 3. **Devices** — manual toggles and temperature readout.
 4. **Activity Log** — persisted history of recognized commands.

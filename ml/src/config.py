@@ -40,7 +40,7 @@ class TrainingConfig:
 
 @dataclass(frozen=True)
 class InferenceConfig:
-    password: str = "open sesame"
+    password: str = "open"
     whisper_size: str = "base"
     device: str = "cpu"
     language: str = "en"

@@ -65,7 +65,7 @@ COMMAND_PHRASES: list[tuple[str, str]] = [
     ("music_off", "music off"),
 ]
 
-DEFAULT_PASSWORD = "open sesame"
+DEFAULT_PASSWORD = "open"
 AUDIO_EXTENSIONS = frozenset({".wav", ".flac", ".ogg", ".mp3", ".m4a"})
 
 # Optional third-level folders: dataset/<speaker>/<command>/<condition>/
