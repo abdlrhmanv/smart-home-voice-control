@@ -148,16 +148,39 @@ python recorder_app.py
 ```bash
 cd Project2/ml
 python inventory.py
+python validate_dataset.py
+python scaffold_conditions.py    # optional multi-condition folders
 python train_speaker.py --tune
-python train_command.py --tune
-python eval_loso.py          # leave-one-speaker-out (stricter generalization)
+python train_command.py --tune --augment
+python eval_loso.py              # leave-one-speaker-out
+python eval_nested_cv.py --task command --no-tune
+python make_fixtures.py          # synthetic WAVs for offline e2e
 ```
 
 - Features: MFCC(40) + chroma + spectral contrast + ZCR + RMS (mean+std → 122-D)
-- Model: `StandardScaler` + RBF `SVC` (joblib → `models/*.pkl`)
+- Command extras: MFCC Δ/ΔΔ → 282-D + utterance CMVN
+- Model: `StandardScaler` + RBF `SVC` + **CalibratedClassifierCV** (disable with `--no-calibrate`)
+- Optional train-only waveform noise/gain: `--augment`
 - Split: stratified 80/20, seed 42; optional 5-fold `GridSearchCV` on **train only** (`f1_macro`)
+- Nested CV / calibration report: `eval_nested_cv.py`
 - Inference reject: command conf &lt; 0.55 or speaker conf &lt; 0.45 → `unknown` (no Arduino action)
+- Password: Whisper phrase match **and** enrolled-speaker check (`require_known_speaker`)
 - Spec gate: macro F1 ≥ **0.85** on held-out test
+
+### Environment
+
+Copy `.env.example` and export vars before `streamlit run`:
+
+```bash
+export WHISPER_SIZE=tiny          # faster/lighter password STT
+export ARDUINO_PORT=/dev/ttyUSB0
+export REQUIRE_KNOWN_SPEAKER=1
+```
+
+```bash
+python eval_loso.py          # with CMVN (default)
+python eval_loso.py --no-cmvn
+```
 
 ### Hardware note (2-LED boards)
 
@@ -180,9 +203,14 @@ result = pipe.predict_voice_command("command.wav")
 ```bash
 cd Project2
 pytest --cov=ml/src --cov=api --cov=services --cov=ai --cov-report=term-missing
+
+# Optional Streamlit UI smoke (needs playwright + chromium)
+pip install -r requirements-dev.txt
+playwright install chromium
+RUN_UI_E2E=1 pytest tests/test_ui_smoke.py -q
 ```
 
-Covers labels, features, password normalization, action mapping, serial parsing, trainer validation, and inference on real models/dataset samples.
+Covers labels, features, password normalization, action mapping, serial parsing, trainer validation, service e2e, and inference on real models/dataset samples.
 
 ---
 
@@ -198,7 +226,7 @@ Covers labels, features, password normalization, action mapping, serial parsing,
 
 ## Known limitations
 
-- Password is a **shared spoken phrase** (STT exact match), not speaker-verified login.
+- Password requires phrase **and** enrolled speaker; phrase alone is not enough, but STT can still mis-hear.
 - Low-confidence predictions become `unknown` and are not sent to Arduino.
-- **Leave-one-speaker-out** command F1 is currently ~0.11 (near chance) — the random 80/20 F1 (~0.98) is optimistic because the same speakers appear in train and test. Collect more diverse data or train speaker-independent features before claiming cross-speaker robustness.
+- **Leave-one-speaker-out** command F1 is still near chance (~0.12–0.13) even with CMVN + MFCC deltas — same-speaker holdout F1 (~0.98) is what the course demo exercises. Collect more multi-condition / multi-mic data before claiming cross-speaker robustness.
 - White LED pin (D10) may be unwired if the breadboard only has red + green LEDs.

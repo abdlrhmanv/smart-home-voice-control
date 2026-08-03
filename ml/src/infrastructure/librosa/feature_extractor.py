@@ -18,9 +18,12 @@ class LibrosaFeatureExtractor:
         self,
         config: AudioConfig | None = None,
         preprocessor: AudioPreprocessor | None = None,
+        *,
+        include_deltas: bool = False,
     ) -> None:
         self.config = config or AUDIO
         self.preprocessor = preprocessor or LibrosaAudioPreprocessor(self.config)
+        self.include_deltas = include_deltas
 
     @staticmethod
     def _stats(feat: np.ndarray) -> np.ndarray:
@@ -33,23 +36,30 @@ class LibrosaFeatureExtractor:
         mfcc = librosa.feature.mfcc(
             y=y, sr=sr, n_mfcc=cfg.n_mfcc, n_fft=cfg.n_fft, hop_length=cfg.hop_length
         )
-        chroma = librosa.feature.chroma_stft(
-            y=y, sr=sr, n_fft=cfg.n_fft, hop_length=cfg.hop_length
-        )
-        contrast = librosa.feature.spectral_contrast(
-            y=y, sr=sr, n_fft=cfg.n_fft, hop_length=cfg.hop_length
-        )
-        zcr = librosa.feature.zero_crossing_rate(y, hop_length=cfg.hop_length)
-        rms = librosa.feature.rms(y=y, frame_length=cfg.n_fft, hop_length=cfg.hop_length)
-        return np.concatenate(
-            [
-                self._stats(mfcc),
-                self._stats(chroma),
-                self._stats(contrast),
-                self._stats(zcr),
-                self._stats(rms),
-            ]
-        ).astype(np.float32)
+        parts = [
+            self._stats(mfcc),
+            self._stats(
+                librosa.feature.chroma_stft(
+                    y=y, sr=sr, n_fft=cfg.n_fft, hop_length=cfg.hop_length
+                )
+            ),
+            self._stats(
+                librosa.feature.spectral_contrast(
+                    y=y, sr=sr, n_fft=cfg.n_fft, hop_length=cfg.hop_length
+                )
+            ),
+            self._stats(librosa.feature.zero_crossing_rate(y, hop_length=cfg.hop_length)),
+            self._stats(
+                librosa.feature.rms(
+                    y=y, frame_length=cfg.n_fft, hop_length=cfg.hop_length
+                )
+            ),
+        ]
+        if self.include_deltas:
+            # Dynamics help command content; less useful for raw speaker ID.
+            parts.append(self._stats(librosa.feature.delta(mfcc)))
+            parts.append(self._stats(librosa.feature.delta(mfcc, order=2)))
+        return np.concatenate(parts).astype(np.float32)
 
     def extract_from_file(self, path: str | Path) -> np.ndarray:
         y, sr = self.preprocessor.prepare(path)

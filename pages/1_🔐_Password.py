@@ -11,7 +11,10 @@ initialize_state()
 show_header()
 
 st.title("Smart Home Authentication")
-st.write('Say the voice password ("open sesame") to unlock the control panel.')
+st.write(
+    'Say the voice password ("open sesame"). '
+    "An enrolled speaker voice is also required to unlock."
+)
 st.divider()
 
 col_a, col_b = st.columns(2)
@@ -32,8 +35,16 @@ if st.button("Record Password", use_container_width=True):
             if result.password_ok:
                 st.success(result.message)
                 st.session_state.authenticated = True
+                if result.speaker:
+                    st.session_state.last_user = result.speaker
                 st.info("You can now use Voice Control and Devices.")
             else:
                 st.error(result.message)
                 st.session_state.authenticated = False
             st.write("**Transcript:**", result.transcript)
+            if result.speaker is not None:
+                conf = result.speaker_confidence
+                conf_txt = f"{conf * 100:.1f}%" if conf is not None else "—"
+                st.write(f"**Speaker:** {result.speaker} ({conf_txt})")
+            if result.rejected_reason:
+                st.caption(f"Reason: {result.rejected_reason}")

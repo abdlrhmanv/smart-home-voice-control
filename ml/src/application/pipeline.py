@@ -12,6 +12,7 @@ from src.config import INFERENCE, InferenceConfig
 from src.domain.labels import LabelMap
 from src.domain.models import InferenceResult, Prediction
 from src.infrastructure.librosa.feature_extractor import LibrosaFeatureExtractor
+from src.infrastructure.librosa.normalize import cmvn
 from src.infrastructure.persistence.model_loader import JoblibModelLoader
 from src.infrastructure.whisper.transcriber import FasterWhisperTranscriber
 from src.ports.classifier import Classifier
@@ -47,10 +48,14 @@ class SmartHomePipeline:
         action_mapper: CommandActionMapper | None = None,
         password: str | None = None,
         config: InferenceConfig | None = None,
+        command_feature_extractor: FeatureExtractor | None = None,
     ) -> None:
         self.speaker_clf = speaker_clf
         self.command_clf = command_clf
         self.features = feature_extractor
+        self.command_features_extractor = (
+            command_feature_extractor or feature_extractor
+        )
         self.transcriber = transcriber
         self.speaker_labels = speaker_labels
         self.command_labels = command_labels
@@ -65,12 +70,13 @@ class SmartHomePipeline:
         model_loader: ModelLoader | None = None,
     ) -> SmartHomePipeline:
         """Composition root — wires infrastructure adapters into this use-case."""
-        cfg = config or INFERENCE
+        cfg = InferenceConfig.from_env(config) if config is not None else InferenceConfig.from_env()
         loader = model_loader or JoblibModelLoader()
         return cls(
             speaker_clf=loader.load(SPEAKER_TASK),
             command_clf=loader.load(COMMAND_TASK),
             feature_extractor=LibrosaFeatureExtractor(),
+            command_feature_extractor=LibrosaFeatureExtractor(include_deltas=True),
             transcriber=FasterWhisperTranscriber(cfg),
             speaker_labels=SPEAKER_TASK.labels,
             command_labels=COMMAND_TASK.labels,
@@ -83,23 +89,63 @@ class SmartHomePipeline:
         self.speaker_clf = loader.load(SPEAKER_TASK)
         self.command_clf = loader.load(COMMAND_TASK)
 
+    def _command_vector(self, audio_path: str | Path) -> np.ndarray:
+        feats = self.command_features_extractor.extract_from_file(audio_path)
+        if self.config.command_cmvn:
+            return cmvn(feats)
+        return feats
+
     def verify_password(self, audio_path: str | Path) -> InferenceResult:
+        """STT phrase match, optionally AND known-speaker check."""
         ok, transcript = self.transcriber.check_password(audio_path, self.password)
-        if ok:
+        if not ok:
             return InferenceResult(
-                password_ok=True,
+                password_ok=False,
                 transcript=transcript,
-                message="Password accepted. Arduino unlocked (red LED ON).",
-                action=self.actions.password_ok(),
-                accepted=True,
+                message="Wrong password. Please record again.",
+                action=self.actions.password_fail(),
+                accepted=False,
+                rejected_reason="wrong_password",
             )
+
+        cfg = self.config
+        speaker_name: str | None = None
+        speaker_conf: float | None = None
+
+        if cfg.require_known_speaker:
+            features = self.features.extract_from_file(audio_path)
+            speaker = _predict_labeled(
+                self.speaker_clf, features, self.speaker_labels
+            )
+            speaker_name = speaker.name
+            speaker_conf = speaker.confidence
+            if speaker.confidence < cfg.password_min_speaker_confidence:
+                return InferenceResult(
+                    password_ok=False,
+                    transcript=transcript,
+                    speaker=cfg.unknown_label,
+                    speaker_confidence=speaker_conf,
+                    message=(
+                        "Password phrase matched, but speaker was not recognized. "
+                        "Only enrolled voices may unlock the home."
+                    ),
+                    action=self.actions.password_fail(),
+                    accepted=False,
+                    rejected_reason=(
+                        f"speaker_confidence {speaker.confidence:.2f} "
+                        f"< {cfg.password_min_speaker_confidence:.2f}"
+                    ),
+                )
+
+        who = f" ({speaker_name})" if speaker_name else ""
         return InferenceResult(
-            password_ok=False,
+            password_ok=True,
             transcript=transcript,
-            message="Wrong password. Please record again.",
-            action=self.actions.password_fail(),
-            accepted=False,
-            rejected_reason="wrong_password",
+            speaker=speaker_name,
+            speaker_confidence=speaker_conf,
+            message=f"Password accepted{who}. Arduino unlocked (red LED ON).",
+            action=self.actions.password_ok(),
+            accepted=True,
         )
 
     def predict_voice_command(self, audio_path: str | Path) -> InferenceResult:
@@ -111,7 +157,11 @@ class SmartHomePipeline:
         """
         features = self.features.extract_from_file(audio_path)
         speaker = _predict_labeled(self.speaker_clf, features, self.speaker_labels)
-        command = _predict_labeled(self.command_clf, features, self.command_labels)
+        command = _predict_labeled(
+            self.command_clf,
+            self._command_vector(audio_path),
+            self.command_labels,
+        )
 
         cfg = self.config
         unknown = cfg.unknown_label

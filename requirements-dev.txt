@@ -1,0 +1,2 @@
+# Optional UI e2e
+playwright>=1.40.0

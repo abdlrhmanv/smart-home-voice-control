@@ -20,11 +20,13 @@ class FakeClf:
 
     def predict_proba(self, x):
         probs = np.zeros((1, self.n_classes), dtype=float)
+        if self.n_classes == 1:
+            probs[0, 0] = 1.0
+            return probs
+        rem = max(0.0, 1.0 - self.conf)
+        other = rem / (self.n_classes - 1)
+        probs[0, :] = other
         probs[0, self.label_id] = self.conf
-        # distribute remainder so rows sum ~1
-        rem = 1.0 - self.conf
-        if self.n_classes > 1 and rem > 0:
-            probs[0, (self.label_id + 1) % self.n_classes] = rem
         return probs
 
 

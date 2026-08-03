@@ -19,16 +19,21 @@ from src.config import TRAINING, TrainingConfig
 from src.domain.labels import SPEAKER_LABELS
 from src.infrastructure.filesystem.dataset_repo import FilesystemDatasetRepository
 from src.infrastructure.librosa.feature_extractor import LibrosaFeatureExtractor
+from src.infrastructure.librosa.normalize import cmvn
 from src.infrastructure.sklearn.svm_classifier import SklearnSvmClassifier
 
 
 def build_xy_by_speaker(
     extractor: LibrosaFeatureExtractor,
     repo: FilesystemDatasetRepository,
+    *,
+    apply_cmvn: bool = True,
 ) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     buckets: dict[str, list[tuple[np.ndarray, int]]] = defaultdict(list)
     for sample in repo.discover():
         x = extractor.extract_from_file(sample.path)
+        if apply_cmvn:
+            x = cmvn(x)
         y = COMMAND_TASK.encode_sample(sample)
         buckets[sample.speaker].append((x, y))
 
@@ -40,11 +45,17 @@ def build_xy_by_speaker(
     return out
 
 
-def evaluate_loso(tune: bool = False, config: TrainingConfig | None = None) -> dict:
+def evaluate_loso(
+    tune: bool = False,
+    config: TrainingConfig | None = None,
+    *,
+    apply_cmvn: bool = True,
+    include_deltas: bool = True,
+) -> dict:
     cfg = config or TRAINING
     repo = FilesystemDatasetRepository()
-    extractor = LibrosaFeatureExtractor()
-    by_speaker = build_xy_by_speaker(extractor, repo)
+    extractor = LibrosaFeatureExtractor(include_deltas=include_deltas)
+    by_speaker = build_xy_by_speaker(extractor, repo, apply_cmvn=apply_cmvn)
     speakers = [s for s in SPEAKER_LABELS.names() if s in by_speaker]
     if len(speakers) < 2:
         raise RuntimeError("Need ≥2 speakers for leave-one-speaker-out.")
@@ -53,6 +64,7 @@ def evaluate_loso(tune: bool = False, config: TrainingConfig | None = None) -> d
     fold_scores: list[dict] = []
 
     print("\nLeave-one-speaker-out — Command classifier")
+    print(f"  utterance CMVN: {apply_cmvn}  |  MFCC deltas: {include_deltas}")
     print("=" * 60)
 
     for held_out in speakers:
@@ -100,8 +112,22 @@ def evaluate_loso(tune: bool = False, config: TrainingConfig | None = None) -> d
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tune", action="store_true", help="Grid-search on each train fold")
+    parser.add_argument(
+        "--no-cmvn",
+        action="store_true",
+        help="Disable per-utterance CMVN (legacy comparison)",
+    )
+    parser.add_argument(
+        "--no-deltas",
+        action="store_true",
+        help="Disable MFCC delta / delta-delta features",
+    )
     args = parser.parse_args()
-    evaluate_loso(tune=args.tune)
+    evaluate_loso(
+        tune=args.tune,
+        apply_cmvn=not args.no_cmvn,
+        include_deltas=not args.no_deltas,
+    )
 
 
 if __name__ == "__main__":

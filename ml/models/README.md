@@ -1,15 +1,17 @@
 # Model artifacts
 
-| File | Task | Algorithm |
-|------|------|-----------|
-| `speaker.pkl` | Speaker ID | `StandardScaler` + RBF SVM |
-| `command.pkl` | Command class | `StandardScaler` + RBF SVM |
+| File | Task | Algorithm | Features |
+|------|------|-----------|----------|
+| `speaker.pkl` | Speaker ID | Scaler + RBF SVM + CalibratedClassifierCV | 122-D (no CMVN) |
+| `command.pkl` | Command class | Scaler + RBF SVM + CalibratedClassifierCV | 282-D + CMVN (train may include `--augment`) |
 
-Serialized with **joblib** as a sklearn `Pipeline`. Retrain:
+Serialized with **joblib**. Retrain:
 
 ```bash
-python train_speaker.py --tune
-python train_command.py --tune
+python train_speaker.py
+python train_command.py --augment
+python eval_loso.py
+python eval_nested_cv.py --task command --no-tune
 ```
 
-Do not commit large experimental checkpoints; keep only the evaluation-passing pair used by the app.
+Use `--no-calibrate` only for ablation. Do not commit large experimental checkpoints.

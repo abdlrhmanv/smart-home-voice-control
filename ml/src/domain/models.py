@@ -16,6 +16,7 @@ class AudioSample:
     path: Path
     speaker: str
     command: str
+    condition: str = "close"
 
 
 @dataclass

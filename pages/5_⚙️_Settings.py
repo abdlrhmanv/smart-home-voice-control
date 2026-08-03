@@ -37,8 +37,8 @@ st.divider()
 st.subheader("Inference thresholds")
 st.write(
     "Low-confidence predictions are rejected (`unknown`) and not sent to Arduino. "
-    "Configure in `ml/src/config.py` → `InferenceConfig.min_command_confidence` "
-    f"/ `min_speaker_confidence`."
+    "Password requires Whisper phrase match **and** an enrolled speaker. "
+    "Configure in `ml/src/config.py` → `InferenceConfig`."
 )
 
 st.divider()
@@ -59,5 +59,21 @@ If you only wired red + green, leave D10 empty — `LIGHT_ON`/`OFF` still send, 
 st.divider()
 st.subheader("Session")
 st.write("Authenticated:", st.session_state.authenticated)
-st.write("Password phrase is configured in `ml/src/config.py` (`InferenceConfig.password`).")
-st.write("Whisper model:", os.environ.get("WHISPER_SIZE", "base (default)"))
+st.write("Password phrase / thresholds: see `.env.example` or `InferenceConfig`.")
+try:
+    import sys
+    from pathlib import Path
+
+    ml = Path(__file__).resolve().parents[1] / "ml"
+    if str(ml) not in sys.path:
+        sys.path.insert(0, str(ml))
+    from src.config import InferenceConfig
+
+    cfg = InferenceConfig.from_env()
+    st.write(
+        f"Whisper: `{cfg.whisper_size}` on `{cfg.device}` · "
+        f"require_known_speaker={cfg.require_known_speaker}"
+    )
+except Exception as exc:
+    st.write("Whisper model:", os.environ.get("WHISPER_SIZE", "base (default)"))
+    st.caption(f"(config load note: {exc})")

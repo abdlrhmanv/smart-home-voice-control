@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print dataset inventory."""
+"""Print dataset inventory (including recording conditions)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src.domain.labels import COMMAND_LABELS, SPEAKER_LABELS
+from src.domain.labels import COMMAND_LABELS, RECORDING_CONDITIONS, SPEAKER_LABELS
 from src.infrastructure.filesystem import FilesystemDatasetRepository
 
 
@@ -22,6 +22,7 @@ def main() -> None:
     by_speaker = Counter(s.speaker for s in samples)
     by_command = Counter(s.command for s in samples)
     by_pair = Counter((s.speaker, s.command) for s in samples)
+    by_cond = Counter(s.condition for s in samples)
 
     print("Per speaker")
     for name in SPEAKER_LABELS.names():
@@ -32,6 +33,13 @@ def main() -> None:
     print("\nPer command")
     for name in COMMAND_LABELS.names():
         print(f"  {name:12s} {by_command.get(name, 0):4d}")
+
+    print("\nPer condition")
+    for name in RECORDING_CONDITIONS:
+        print(f"  {name:12s} {by_cond.get(name, 0):4d}")
+    extras = [k for k in by_cond if k not in RECORDING_CONDITIONS]
+    for name in extras:
+        print(f"  {name:12s} {by_cond.get(name, 0):4d}")
 
     print("\nSpeaker × command")
     print(f"  {'':14s}", end="")
@@ -56,6 +64,14 @@ def main() -> None:
             print(f"  - {s}/{c}")
     else:
         print("\n✓ All speaker/command folders have at least one clip.")
+
+    n_conds = sum(1 for c in RECORDING_CONDITIONS if by_cond.get(c, 0) > 0)
+    if n_conds < 2:
+        print(
+            "\n⚠ Tip: only one recording condition detected. "
+            "Use scaffold_conditions.py + recorder RECORDING_CONDITION "
+            "to add distance/noise/rate takes for stronger LOSO."
+        )
 
 
 if __name__ == "__main__":

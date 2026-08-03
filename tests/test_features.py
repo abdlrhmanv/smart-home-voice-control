@@ -11,6 +11,13 @@ def test_feature_vector_shape(tmp_wav):
     assert np.isfinite(feats).all()
 
 
+def test_command_features_include_deltas(tmp_wav):
+    feats = LibrosaFeatureExtractor(include_deltas=True).extract_from_file(tmp_wav)
+    # base 122 + delta MFCC 80 + delta-delta 80
+    assert feats.shape[0] == 282
+    assert np.isfinite(feats).all()
+
+
 def test_empty_audio_returns_zeros(empty_wav):
     feats = LibrosaFeatureExtractor().extract_from_file(empty_wav)
     assert feats.shape[0] == 122
