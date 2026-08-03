@@ -54,17 +54,17 @@ class HomeControlService:
 
     def turn_light_on(self) -> bool:
         self.require_auth()
-        sent = self.serial.send_command("LIGHT_ON")
+        sent = self.serial.send_command(str(arduino_for("light_on")))
         return self._apply_flag(self.store.set_light, True, sent)
 
     def turn_light_off(self) -> bool:
         self.require_auth()
-        sent = self.serial.send_command("LIGHT_OFF")
+        sent = self.serial.send_command(str(arduino_for("light_off")))
         return self._apply_flag(self.store.set_light, False, sent)
 
     def turn_music_on(self) -> bool:
         self.require_auth()
-        sent = self.serial.send_command("MUSIC_ON")
+        sent = self.serial.send_command(str(arduino_for("music_on")))
         ok = self._apply_flag(self.store.set_music, True, sent)
         if ok:
             self.music.start()
@@ -73,7 +73,7 @@ class HomeControlService:
     def turn_music_off(self) -> bool:
         self.require_auth()
         self.music.stop()
-        sent = self.serial.send_command("MUSIC_OFF")
+        sent = self.serial.send_command(str(arduino_for("music_off")))
         return self._apply_flag(self.store.set_music, False, sent)
 
     def execute_command(self, command: str) -> bool:

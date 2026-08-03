@@ -69,7 +69,7 @@ def test_accepts_high_confidence(tmp_path):
     result = pipe.predict_voice_command(tmp_path / "x.wav")
     assert result.accepted is True
     assert result.command == "light_on"
-    assert result.action.get("arduino") == "LIGHT_ON"
+    assert result.action.get("arduino") == "MUSIC_ON"
 
 
 def test_rejects_low_speaker_confidence_clears_action(tmp_path):

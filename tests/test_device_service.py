@@ -73,7 +73,7 @@ def test_device_state_not_updated_when_serial_fails():
     svc = HomeControlService(store, serial, FakeMusic(), allow_offline=False)
     assert svc.turn_light_on() is False
     assert store.light is False
-    assert "LIGHT_ON" in serial.sent
+    assert "MUSIC_ON" in serial.sent
 
 
 def test_unlock_sets_arduino_synced():

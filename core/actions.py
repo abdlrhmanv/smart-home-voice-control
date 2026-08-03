@@ -1,19 +1,27 @@
-"""Canonical command → hardware/UI action catalog (single source of truth)."""
+"""Canonical command → hardware/UI action catalog (single source of truth).
+
+Ahmed's sketch:
+  LIGHT_*  → WHITE_LED on D12
+  MUSIC_*  → GREEN_LED on D13
+
+On the team breadboard the green (music) LED is on D12 and D13 is the
+other channel — so we swap serial tokens here (Arduino file stays unchanged).
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-# Rich payloads used by ML InferenceResult.action and by HomeControlService.
+# Swapped vs sketch names so voice "light"/"music" match the physical LEDs.
 COMMAND_ACTIONS: dict[str, dict[str, Any]] = {
-    "light_on": {"arduino": "LIGHT_ON", "music": None, "white_led": True},
-    "light_off": {"arduino": "LIGHT_OFF", "music": None, "white_led": False},
-    "music_on": {"arduino": "MUSIC_ON", "music": "play", "green_led": True},
-    "music_off": {"arduino": "MUSIC_OFF", "music": "stop", "green_led": False},
+    "light_on": {"arduino": "MUSIC_ON", "music": None, "led": True},
+    "light_off": {"arduino": "MUSIC_OFF", "music": None, "led": False},
+    "music_on": {"arduino": "LIGHT_ON", "music": "play", "led": True},
+    "music_off": {"arduino": "LIGHT_OFF", "music": "stop", "led": False},
 }
 
-PASSWORD_OK_ACTION: dict[str, Any] = {"arduino": "PASSWORD_OK", "red_led": True}
-PASSWORD_FAIL_ACTION: dict[str, Any] = {"arduino": "PASSWORD_FAIL", "red_led": False}
+PASSWORD_OK_ACTION: dict[str, Any] = {"arduino": "PASSWORD_OK", "buzzer": True}
+PASSWORD_FAIL_ACTION: dict[str, Any] = {"arduino": "PASSWORD_FAIL", "buzzer": False}
 
 
 def map_command(command: str) -> dict[str, Any]:
