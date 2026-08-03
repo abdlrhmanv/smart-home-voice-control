@@ -6,11 +6,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from adapters.audio_input import MicrophoneRecorder
-from adapters.ml_gateway import MlVoiceGateway
-from adapters.music import _default_player
-from adapters.session_store import StreamlitSessionStore
-from api.serial_service import BAUD_RATE, get_bridge
 from core.home import HomeControlService
 from core.password import PasswordService
 from core.ports import AudioRecorder, MusicPlayer, SerialPort, SessionStore, VoiceGateway
@@ -47,6 +42,14 @@ def build_container(
     recorder: AudioRecorder | None = None,
     allow_offline: bool | None = None,
 ) -> AppContainer:
+    # Lazy adapter imports: keep ``import core.container`` free of PortAudio /
+    # Streamlit side effects until a real container is built.
+    from adapters.audio_input import MicrophoneRecorder
+    from adapters.ml_gateway import MlVoiceGateway
+    from adapters.music import _default_player
+    from adapters.session_store import StreamlitSessionStore
+    from api.serial_service import BAUD_RATE, get_bridge
+
     offline = (
         os.environ.get("ALLOW_OFFLINE_CONTROL", "1") == "1"
         if allow_offline is None
