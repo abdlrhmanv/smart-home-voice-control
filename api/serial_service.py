@@ -1,7 +1,7 @@
 import serial
 import time
 
-SERIAL_PORT = "COM3"
+SERIAL_PORT = "COM11"
 BAUD_RATE = 9600
 
 arduino = None
