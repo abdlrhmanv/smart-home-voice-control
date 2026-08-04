@@ -39,6 +39,9 @@ class FakeTranscriber:
     def check_password(self, audio_path, expected):
         return False, "nope"
 
+    def transcribe(self, audio_path):
+        return ""
+
 
 def _pipe(speaker_conf: float, command_conf: float, cfg: InferenceConfig) -> SmartHomePipeline:
     return SmartHomePipeline(
@@ -86,6 +89,9 @@ def test_run_full_preserves_password_ok(tmp_path):
     class OkTranscriber:
         def check_password(self, audio_path, expected):
             return True, "open sesame"
+
+        def transcribe(self, audio_path):
+            return ""
 
     cfg = InferenceConfig(
         min_command_confidence=0.5,

@@ -53,6 +53,10 @@ class InferenceConfig:
     password_min_speaker_confidence: float = 0.45
     # Apply per-utterance CMVN to command features (improves cross-speaker).
     command_cmvn: bool = True
+    # Prefer Whisper phrase match over SVM when the transcript is a known command.
+    command_stt_override: bool = True
+    # Confidence assigned when STT uniquely matches a command phrase.
+    command_stt_confidence: float = 0.95
 
     @classmethod
     def from_env(cls, base: InferenceConfig | None = None) -> InferenceConfig:
@@ -63,6 +67,7 @@ class InferenceConfig:
           SMART_HOME_PASSWORD
           MIN_COMMAND_CONFIDENCE, MIN_SPEAKER_CONFIDENCE
           REQUIRE_KNOWN_SPEAKER (=0/1/true/false)
+          COMMAND_STT_OVERRIDE (=0/1/true/false)
         """
         cfg = base or cls()
         updates: dict = {}
@@ -84,6 +89,13 @@ class InferenceConfig:
             updates["password_min_speaker_confidence"] = float(v)
         if (v := os.environ.get("REQUIRE_KNOWN_SPEAKER")) is not None:
             updates["require_known_speaker"] = v.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        if (v := os.environ.get("COMMAND_STT_OVERRIDE")) is not None:
+            updates["command_stt_override"] = v.strip().lower() in {
                 "1",
                 "true",
                 "yes",

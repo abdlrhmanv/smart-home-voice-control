@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -64,6 +65,29 @@ COMMAND_PHRASES: list[tuple[str, str]] = [
     ("music_on", "music on"),
     ("music_off", "music off"),
 ]
+
+# STT variants for live mic (e.g. "lighton" as one word). Off before on.
+_COMMAND_STT_VARIANTS: list[tuple[str, tuple[str, ...]]] = [
+    ("light_off", ("light off", "lights off", "lightoff")),
+    ("music_off", ("music off", "musicoff")),
+    ("light_on", ("light on", "lights on", "lighton", "lighten")),
+    ("music_on", ("music on", "musicon")),
+]
+
+
+def match_command_phrase(transcript: str) -> str | None:
+    """Map a Whisper transcript to a command label, or None if unclear."""
+    text = transcript.lower().strip()
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return None
+    compact = text.replace(" ", "")
+    for command, variants in _COMMAND_STT_VARIANTS:
+        for variant in variants:
+            if variant in text or variant.replace(" ", "") in compact:
+                return command
+    return None
 
 DEFAULT_PASSWORD = "open"
 AUDIO_EXTENSIONS = frozenset({".wav", ".flac", ".ogg", ".mp3", ".m4a"})

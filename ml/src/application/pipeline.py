@@ -9,7 +9,7 @@ import numpy as np
 from src.actions.command_actions import CommandActionMapper
 from src.application.tasks import COMMAND_TASK, SPEAKER_TASK
 from src.config import INFERENCE, InferenceConfig
-from src.domain.labels import LabelMap
+from src.domain.labels import LabelMap, match_command_phrase
 from src.domain.models import InferenceResult, Prediction
 from src.infrastructure.librosa.feature_extractor import LibrosaFeatureExtractor
 from src.infrastructure.librosa.normalize import cmvn
@@ -154,6 +154,10 @@ class SmartHomePipeline:
 
         Low-confidence predictions are rejected (``accepted=False``) and the
         corresponding label is replaced with ``config.unknown_label``.
+
+        When ``command_stt_override`` is on, a clear Whisper phrase match
+        (e.g. ``lighton`` → ``light_on``) overrides the command SVM — speaker
+        ID still comes from the SVM.
         """
         features = self.features.extract_from_file(audio_path)
         speaker = _predict_labeled(self.speaker_clf, features, self.speaker_labels)
@@ -167,6 +171,19 @@ class SmartHomePipeline:
         unknown = cfg.unknown_label
         reasons: list[str] = []
 
+        transcript = ""
+        command_name = command.name
+        command_conf = command.confidence
+        if cfg.command_stt_override:
+            try:
+                transcript = self.transcriber.transcribe(audio_path) or ""
+            except Exception:
+                transcript = ""
+            stt_command = match_command_phrase(transcript)
+            if stt_command is not None:
+                command_name = stt_command
+                command_conf = max(command.confidence, cfg.command_stt_confidence)
+
         speaker_name = speaker.name
         if speaker.confidence < cfg.min_speaker_confidence:
             speaker_name = unknown
@@ -175,13 +192,12 @@ class SmartHomePipeline:
                 f"< {cfg.min_speaker_confidence:.2f}"
             )
 
-        command_name = command.name
-        action = self.actions.map(command.name)
-        if command.confidence < cfg.min_command_confidence:
+        action = self.actions.map(command_name)
+        if command_conf < cfg.min_command_confidence:
             command_name = unknown
             action = {}
             reasons.append(
-                f"command_confidence {command.confidence:.2f} "
+                f"command_confidence {command_conf:.2f} "
                 f"< {cfg.min_command_confidence:.2f}"
             )
 
@@ -199,11 +215,11 @@ class SmartHomePipeline:
 
         return InferenceResult(
             password_ok=False,
-            transcript="",
+            transcript=transcript,
             speaker=speaker_name,
             speaker_confidence=speaker.confidence,
             command=command_name,
-            command_confidence=command.confidence,
+            command_confidence=command_conf,
             action=action,
             message=message,
             accepted=accepted,

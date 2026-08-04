@@ -169,6 +169,7 @@ Streamlit Password / Voice pages also accept **WAV uploads** (no mic) for demos 
 - Split: stratified 80/20, seed 42; optional 5-fold `GridSearchCV` on **train only** (`f1_macro`)
 - Nested CV / calibration report: `eval_nested_cv.py`
 - Inference reject: command conf &lt; 0.55 or speaker conf &lt; 0.45 → `unknown` (no Arduino action)
+- Command STT override: Whisper phrase match (`light on` / `lighton`, …) overrides the command SVM when clear (speaker still from SVM)
 - Password: Whisper phrase match **and** enrolled-speaker check (`require_known_speaker`)
 - Spec gate: macro F1 ≥ **0.85** on held-out test
 
