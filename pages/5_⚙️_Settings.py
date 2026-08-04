@@ -16,8 +16,8 @@ st.divider()
 
 st.subheader("Arduino serial (Ahmed sketch — unchanged)")
 st.caption(
-    "Buzzer D11 · WHITE/LIGHT pin D12 · GREEN/MUSIC pin D13 · Temp A0 · 9600 baud. "
-    "App swaps light↔music serial tokens to match the breadboard LEDs."
+    "Buzzer D11 · Light/WHITE D12 (`LIGHT_*`) · Music/GREEN D13 (`MUSIC_*`) · "
+    "Temp A0 (`SEND_TEMP`) · 9600 baud. Re-flash after pulling `typo_fix`."
 )
 status = settings_service.serial_status()
 st.write(f"Resolved port: `{status.port or 'none'}`")
@@ -117,10 +117,9 @@ st.markdown(
 | Buzzer | D11 | `PASSWORD_OK` / `PASSWORD_FAIL` |
 | WHITE LED | D12 | `LIGHT_ON` / `LIGHT_OFF` |
 | GREEN LED | D13 | `MUSIC_ON` / `MUSIC_OFF` |
-| TMP sensor | A0 | `SEND_TEMP` |
+| TMP sensor | A0 | `SEND_TEMP` → `Temperature: <float> C` |
 
-Python maps spoken **light** → `MUSIC_*` and **music** → `LIGHT_*` so the green
-LED on the breadboard follows music (Arduino file is not edited).
+`SEND_TEMP` only works after `PASSWORD_OK` (`pass_corr`). Re-opening USB resets that flag — use **Test PASSWORD_OK** if temperature times out.
 """
 )
 

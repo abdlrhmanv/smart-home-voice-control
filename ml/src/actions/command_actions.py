@@ -15,12 +15,12 @@ try:
         PASSWORD_OK_ACTION,
     )
 except ImportError:  # pragma: no cover - ml-only PYTHONPATH
-    # Keep in sync with core.actions (breadboard pin swap vs Ahmed token names).
+    # Keep in sync with core.actions (Ahmed sketch token names).
     COMMAND_ACTIONS = {
-        "light_on": {"arduino": "MUSIC_ON", "music": None, "led": True},
-        "light_off": {"arduino": "MUSIC_OFF", "music": None, "led": False},
-        "music_on": {"arduino": "LIGHT_ON", "music": "play", "led": True},
-        "music_off": {"arduino": "LIGHT_OFF", "music": "stop", "led": False},
+        "light_on": {"arduino": "LIGHT_ON", "music": None, "led": True},
+        "light_off": {"arduino": "LIGHT_OFF", "music": None, "led": False},
+        "music_on": {"arduino": "MUSIC_ON", "music": "play", "led": True},
+        "music_off": {"arduino": "MUSIC_OFF", "music": "stop", "led": False},
     }
     PASSWORD_OK_ACTION = {"arduino": "PASSWORD_OK", "buzzer": True}
     PASSWORD_FAIL_ACTION = {"arduino": "PASSWORD_FAIL", "buzzer": False}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from typing import Optional, Protocol
 
@@ -20,6 +21,10 @@ logger = logging.getLogger(__name__)
 PASSWORD_OK_SETTLE_S = float(os.environ.get("ARDUINO_PASSWORD_SETTLE_S", "4.6"))
 CONNECT_SETTLE_S = float(os.environ.get("ARDUINO_CONNECT_SETTLE_S", "2.0"))
 READ_TIMEOUT_S = 1.0
+TEMP_LINE_RE = re.compile(
+    r"(?:temperature|tempratute)\s*:\s*([-+]?\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
 
 
 def env_port() -> str:
@@ -176,22 +181,33 @@ class SerialBridge:
             time.sleep(0.05)
         return None
 
-    def request_temperature(self, timeout_s: float = 2.0) -> Optional[float]:
+    def request_temperature(self, timeout_s: float = 3.0) -> Optional[float]:
+        if self._arduino is not None and self._arduino.is_open:
+            try:
+                self._arduino.reset_input_buffer()
+            except Exception:
+                pass
+
         if not self.send_command("SEND_TEMP"):
             return None
 
-        # Ahmed replies "Tempratute: <float> C"
-        line = self.read_line(timeout_s=timeout_s)
-        if not line:
-            return None
-
-        for prefix in ("Temperature:", "Tempratute:"):
-            if prefix.lower() in line.lower():
+        # Ahmed replies "Temperature: <float> C" (older builds: "Tempratute:").
+        # Keep reading until we see that line or the deadline hits (skip junk).
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            remaining = max(0.05, deadline - time.time())
+            line = self.read_line(timeout_s=min(1.0, remaining))
+            if not line:
+                continue
+            match = TEMP_LINE_RE.search(line)
+            if match:
                 try:
-                    token = line.split(":", 1)[1].strip().split()[0]
-                    return float(token)
-                except (IndexError, ValueError):
+                    return float(match.group(1))
+                except ValueError:
                     return None
+            logger.debug("Ignoring non-temp serial line: %r", line)
+        self.last_error = "Timed out waiting for Temperature: reply (is PASSWORD_OK set?)"
+        logger.warning("%s", self.last_error)
         return None
 
 

@@ -131,7 +131,7 @@ def test_e2e_password_then_light_on(harness):
             "command": "light_on",
             "confidence": 96.0,
             "speaker_confidence": 91.0,
-            "action": {"arduino": "MUSIC_ON"},
+            "action": {"arduino": "LIGHT_ON"},
             "message": "Detected ahmed saying 'light on'.",
             "accepted": True,
             "rejected_reason": None,
@@ -145,7 +145,7 @@ def test_e2e_password_then_light_on(harness):
 
     voice = voice_service.start_listening()
     assert voice["executed"] is True
-    assert "MUSIC_ON" in harness["serial"].sent
+    assert "LIGHT_ON" in harness["serial"].sent
     assert harness["store"].light is True
 
 
@@ -156,7 +156,7 @@ def test_e2e_voice_requires_auth(harness):
             "command": "light_on",
             "confidence": 96.0,
             "accepted": True,
-            "action": {"arduino": "MUSIC_ON"},
+            "action": {"arduino": "LIGHT_ON"},
         }
     )
     with pytest.raises(AuthError):
@@ -191,7 +191,7 @@ def test_e2e_injected_wav_skips_mic(harness):
             "command": "music_on",
             "confidence": 90.0,
             "speaker_confidence": 88.0,
-            "action": {"arduino": "LIGHT_ON"},
+            "action": {"arduino": "MUSIC_ON"},
             "message": "ok",
             "accepted": True,
             "rejected_reason": None,
@@ -200,5 +200,5 @@ def test_e2e_injected_wav_skips_mic(harness):
     result = voice_service.start_listening(audio_path=str(harness["wav"]))
     assert harness["recorder"].calls == 0
     assert result["executed"] is True
-    assert "LIGHT_ON" in harness["serial"].sent
+    assert "MUSIC_ON" in harness["serial"].sent
     assert harness["store"].music is True

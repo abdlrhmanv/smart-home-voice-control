@@ -111,6 +111,11 @@ class HomeControlService:
     def get_temperature(self, *, use_cache_on_failure: bool = False) -> float | None:
         self.require_auth()
         temp = self.serial.request_temperature()
+        # USB reopen resets Ahmed's pass_corr — re-arm once if the first read fails.
+        if temp is None:
+            if self.serial.send_command(str(PASSWORD_OK_ACTION["arduino"])):
+                self.store.set_arduino_synced(True)
+                temp = self.serial.request_temperature()
         if temp is not None:
             self.store.set_temperature(temp, fresh=True)
             return temp

@@ -58,6 +58,21 @@ def test_request_temperature_accepts_legacy_typo(monkeypatch):
     assert bridge.request_temperature() == 21.0
 
 
+def test_request_temperature_skips_junk_then_parses(monkeypatch):
+    bridge = SerialBridge()
+    monkeypatch.setattr(bridge, "send_command", lambda cmd: True)
+    lines = iter(["Not a command !!", "Temperature: 19.25 C"])
+
+    def _read(timeout_s=2.0):
+        try:
+            return next(lines)
+        except StopIteration:
+            return None
+
+    monkeypatch.setattr(bridge, "read_line", _read)
+    assert bridge.request_temperature() == 19.25
+
+
 def test_set_bridge_injection():
     class Stub:
         def send_command(self, command: str) -> bool:
